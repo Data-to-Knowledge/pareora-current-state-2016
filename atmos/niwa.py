@@ -10,8 +10,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import geopandas as gpd
-from hydropandas.util.misc import rd_dir
-from hydropandas.tools.general.spatial.vector import xy_to_gpd, sel_sites_poly, convert_crs
+from gistools import vector, util
 
 
 def rd_niwa_rcp(base_path, mtypes, poly,
@@ -27,7 +26,7 @@ def rd_niwa_rcp(base_path, mtypes, poly,
     ### Import and reorganize data
     vcsn_sites = pd.read_csv(vcsn_sites_csv)[[id_col, x_col, y_col]]
 
-    sites_gpd = xy_to_gpd(id_col, x_col, y_col, vcsn_sites, 4326)
+    sites_gpd = vector.xy_to_gpd(id_col, x_col, y_col, vcsn_sites, 4326)
     poly1 = gpd.read_file(poly)
 
     sites_gpd2 = sites_gpd.to_crs(poly1.crs)
@@ -35,7 +34,7 @@ def rd_niwa_rcp(base_path, mtypes, poly,
     mtypes1 = [mtype_name[i] for i in mtypes]
 
     ### Select sites
-    sites_gpd3 = sel_sites_poly(sites_gpd2, poly1)[id_col]
+    sites_gpd3 = vector.sel_sites_poly(sites_gpd2, poly1)[id_col]
     site_loc1 = vcsn_sites[vcsn_sites[id_col].isin(sites_gpd3)]
     site_loc1.columns = ['id', 'x', 'y']
 
@@ -204,11 +203,7 @@ def nc_add_gis(nc, x_coord, y_coord):
     ds2.close()
 
 
-def rd_niwa_vcsn(mtypes, sites,
-                 nc_path=r'\\fileservices02\ManagedShares\Data\VirtualClimate\vcsn_precip_et_2016-06-06.nc',
-                 vcsn_sites_csv=r'\\fileservices02\ManagedShares\Data\VirtualClimate\GIS\niwa_vcsn_wgs84.csv',
-                 id_col='Network', x_col='deg_x', y_col='deg_y', buffer_dis=0, include_sites=False, from_date=None,
-                 to_date=None, out_crs=None, netcdf_out=None):
+def rd_niwa_vcsn(mtypes, sites, nc_path=r'\\fileservices02\ManagedShares\Data\VirtualClimate\vcsn_precip_et_2016-06-06.nc', vcsn_sites_csv=r'\\fileservices02\ManagedShares\Data\VirtualClimate\GIS\niwa_vcsn_wgs84.csv', id_col='Network', x_col='deg_x', y_col='deg_y', buffer_dis=0, include_sites=False, from_date=None, to_date=None, out_crs=None, netcdf_out=None):
     """
     Function to read in the NIWA vcsn netcdf file and output the data as a dataframe.
 
@@ -230,13 +225,13 @@ def rd_niwa_vcsn(mtypes, sites,
 
     if isinstance(sites, str):
         if sites.endswith('.shp'):
-            sites_gpd = xy_to_gpd(id_col, x_col, y_col, vcsn_sites, 4326)
+            sites_gpd = vector.xy_to_gpd(id_col, x_col, y_col, vcsn_sites, 4326)
             poly1 = gpd.read_file(sites)
 
             sites_gpd2 = sites_gpd.to_crs(poly1.crs)
 
             ### Select sites
-            sites2 = sel_sites_poly(sites_gpd2, poly1, buffer_dis)[id_col]
+            sites2 = vector.sel_sites_poly(sites_gpd2, poly1, buffer_dis)[id_col]
     elif isinstance(sites, (list, pd.Series, np.ndarray)):
         sites2 = sites
 
@@ -274,8 +269,8 @@ def rd_niwa_vcsn(mtypes, sites,
 
     ### Convert to different crs if needed
     if out_crs is not None:
-        crs1 = convert_crs(out_crs)
-        new_gpd1 = xy_to_gpd('id', 'x', 'y', site_loc1, 4326)
+        crs1 = util.convert_crs(out_crs)
+        new_gpd1 = vector.xy_to_gpd('id', 'x', 'y', site_loc1, 4326)
         new_gpd2 = new_gpd1.to_crs(crs1)
         site_loc2 = site_loc1.copy()
         site_loc2['x_new'] = new_gpd2.geometry.apply(lambda j: j.x)
@@ -417,8 +412,8 @@ def sel_xy_nc(bound_shp, nc_path, x_col='longitude', y_col='latitude', time_col=
         df1 = ds3.to_dataframe().reset_index()
         xy1 = ds3[[x_col, y_col]].copy()
         xy2 = xy1.to_dataframe().reset_index()
-        crs1 = convert_crs(out_crs)
-        new_gpd1 = xy_to_gpd(xy2.index, x_col, y_col, xy2, nc_crs)
+        crs1 = util.convert_crs(out_crs)
+        new_gpd1 = vector.xy_to_gpd(xy2.index, x_col, y_col, xy2, nc_crs)
         new_gpd2 = new_gpd1.to_crs(crs1)
         site_loc2 = xy2.copy()
         site_loc2['x_new'] = new_gpd2.geometry.apply(lambda j: j.x)
