@@ -25,16 +25,16 @@ pd.options.display.max_columns = 10
 py_path = os.path.realpath(os.path.dirname(__file__))
 base_path = os.path.split(py_path)[0]
 
-shp_dir = 'input_files'
+input_dir = 'input_files'
 output_dir = 'output_files'
 
 rec_streams_shp = 'rec_streams_pareora.shp'
 catch_del_shp = 'pareora_catchments.shp'
 catch_shp = 'catchment_pareora.shp'
 
-rec_streams_shp_path = os.path.join(base_path, shp_dir, rec_streams_shp)
-catch_del_shp_path = os.path.join(base_path, shp_dir, catch_del_shp)
-catch_shp_path = os.path.join(base_path, shp_dir, catch_shp)
+rec_streams_shp_path = os.path.join(base_path, input_dir, rec_streams_shp)
+catch_del_shp_path = os.path.join(base_path, input_dir, catch_del_shp)
+catch_shp_path = os.path.join(base_path, input_dir, catch_shp)
 
 server = 'edwprod01'
 database = 'hydro'
@@ -52,11 +52,13 @@ to_date = '2015-06-30'
 
 from_date_plot = '1996-06-30'
 
+sites_csv = 'precip_sites_loc.csv'
+precip_ts_csv = 'precip_ts_data.csv'
 flow_csv = 'pareora_huts_flow.csv'
 usage_csv = 'pareora_huts_usage_mon.csv'
 
 #sites = ['403711', '405711', '404810', '405910', '414110', '405610', '403601', '417110', '407810', '400910']
-sites = ['403711', '404810', '405910', '414110', '405711']
+sites = ['403711', '404810', '405910', '414110']
 
 error_mon_plot = 'vcsn_mon_bias.png'
 precip_mon_plot = 'station_precip_mon.png'
@@ -93,7 +95,10 @@ catch_agg_year = catch_agg1.resample('A-JUN').sum()
 vcsn_stats = catch_agg_year.describe()
 
 ## VCSN estimates at station locations
-pts0 = mssql.rd_sql(server, database, sites_table, ['ExtSiteID', 'NZTMX', 'NZTMY'], where_in={'ExtSiteID': sites}, rename_cols=['site', 'x', 'y']).astype(int)
+#pts0 = mssql.rd_sql(server, database, sites_table, ['ExtSiteID', 'NZTMX', 'NZTMY'], where_in={'ExtSiteID': sites}, rename_cols=['site', 'x', 'y']).astype(int)
+#pts0.to_csv(os.path.join(base_path, input_dir, sites_csv), index=False)
+
+pts0 = pd.read_csv(os.path.join(base_path, input_dir, sites_csv))
 
 pts1 = interp2d.points_to_points(both3.reset_index(), 'time', 'x', 'y', 'rain', pts0, 4326, 2193).reset_index().dropna()
 pts1['x'] = pts1['x'].round().astype(int)
@@ -105,8 +110,11 @@ pts2['site'] = pts2['site'].astype(str)
 ####################################
 ### Process Station data
 
-ts1 = mssql.rd_sql_ts(server, database, ts_table, 'ExtSiteID', 'DateTime', 'Value', where_in={'ExtSiteID': sites,'DatasetTypeID': [15]}, from_date=from_date, to_date=to_date).reset_index()
-ts1.rename(columns={'ExtSiteID': 'site', 'DateTime': 'time', 'Value': 'Precip'}, inplace=True)
+#ts1 = mssql.rd_sql_ts(server, database, ts_table, 'ExtSiteID', 'DateTime', 'Value', where_in={'ExtSiteID': sites,'DatasetTypeID': [15]}, from_date=from_date, to_date=to_date).reset_index()
+#ts1.rename(columns={'ExtSiteID': 'site', 'DateTime': 'time', 'Value': 'Precip'}, inplace=True)
+#ts1.to_csv(os.path.join(base_path, input_dir, precip_ts_csv), index=False)
+
+ts1 = pd.read_csv(os.path.join(base_path, input_dir, precip_ts_csv), parse_dates=['time'], infer_datetime_format=True)
 
 grp1 = ts1.groupby(['site', pd.Grouper(key='time', freq='M')])[['Precip']]
 ts2 = grp1.sum()
@@ -210,7 +218,7 @@ plot2.savefig(os.path.join(base_path, output_dir, 'plots', precip_mon_plot))
 
 ## Combine with flow
 
-flow1 = pd.read_csv(os.path.join(base_path, shp_dir, flow_csv),  parse_dates=['time'], infer_datetime_format=True)
+flow1 = pd.read_csv(os.path.join(base_path, input_dir, flow_csv),  parse_dates=['time'], infer_datetime_format=True)
 flow1['site'] = flow1['site'].astype(str)
 
 flow1 = flow1[flow1.site == rec_site]
@@ -220,7 +228,7 @@ flow2 = flow1.groupby(['site', pd.Grouper(key='time', freq='A-JUN')]).sum().rese
 
 ## Add Usage
 
-usage1 = pd.read_csv(os.path.join(base_path, shp_dir, usage_csv),  parse_dates=['time'], infer_datetime_format=True)
+usage1 = pd.read_csv(os.path.join(base_path, input_dir, usage_csv),  parse_dates=['time'], infer_datetime_format=True)
 usage1 = usage1[(usage1.time >= from_date) & (usage1.time <= to_date)]
 
 usage2 = usage1.groupby('time')['sd_usage'].sum().reset_index()
