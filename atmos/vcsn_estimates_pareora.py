@@ -110,11 +110,16 @@ pts2['site'] = pts2['site'].astype(str)
 ####################################
 ### Process Station data
 
+## Summary data
+ts_summ1 = mssql.rd_sql(server, database, ts_summ_table, where_in={'ExtSiteID': sites,'DatasetTypeID': [15]})
+
 #ts1 = mssql.rd_sql_ts(server, database, ts_table, 'ExtSiteID', 'DateTime', 'Value', where_in={'ExtSiteID': sites,'DatasetTypeID': [15]}, from_date=from_date, to_date=to_date).reset_index()
 #ts1.rename(columns={'ExtSiteID': 'site', 'DateTime': 'time', 'Value': 'Precip'}, inplace=True)
 #ts1.to_csv(os.path.join(base_path, input_dir, precip_ts_csv), index=False)
 
+## Time series data
 ts1 = pd.read_csv(os.path.join(base_path, input_dir, precip_ts_csv), parse_dates=['time'], infer_datetime_format=True)
+ts1.site = ts1.site.astype(str)
 
 grp1 = ts1.groupby(['site', pd.Grouper(key='time', freq='M')])[['Precip']]
 ts2 = grp1.sum()
@@ -279,7 +284,8 @@ plot2 = ax.get_figure()
 plot2.savefig(os.path.join(base_path, output_dir, 'plots', precip_yr_plot))
 
 
-
+## Other stats
+ts4.resample('A-JUN').sum().describe().round(2).T
 
 
 
