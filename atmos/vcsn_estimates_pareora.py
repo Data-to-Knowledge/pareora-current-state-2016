@@ -285,6 +285,7 @@ plot2.savefig(os.path.join(base_path, output_dir, 'plots', precip_yr_plot))
 
 
 ## Other stats
+catch_agg2.describe().T
 ts4.resample('A-JUN').sum().describe().round(2).T
 
 
